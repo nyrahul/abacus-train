@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# To record a gap of 3 sec use: arecord -f S16_LE -d 3 res/au/gap3.wav
+# To convert to mulaw format: ffmpeg -i res/au/less.wav -c:a pcm_mulaw less.wav
+
+AU=res/au
+GAP=5 #in seconds
+
+usage()
+{
+    echo "Usage: $0 <options>"
+    echo \
+"Options:
+        -i | --input    ... input file with a list of exercises
+        -o | --output   ... output audio file
+        -s | --series   ... series to use (if no series then full series is used
+        -g | --gap      ... inter-number gap to use (in seconds) [def=5s]
+
+Examples:
+    $0 -i page37.exercise -o page37.wav -s \"1-10\"
+        ... Uses series 1-10 from page37.exercise and creates page37.wav output
+    $0 -i page37.exercise -o page37.wav
+        ... Full series is used
+    $0 -i page37.exercise
+        ... Full series is used and output file is page37.exercise_s1-10_gap5.wav
+"
+    exit
+}
+
+get_file_series()
+{
+    MAXLEN=0
+    lineno=1
+    while read line; do
+        list=( $line )
+        [[ $MAXLEN -eq 0 ]] && MAXLEN=${#list[*]}
+        [[ ${#list[*]} -ne $MAXLEN ]] && \
+            echo "Input has problem, Line $lineno length=${#list[*]} != previous $MAXLEN" && \
+            exit 2
+        ((lineno++))
+    done < $INPUT
+}
+
+get_range()
+{
+    get_file_series
+
+    BEG_RNG=1
+    END_RNG=$MAXLEN
+    if [ "$SERIES" != "" ]; then
+        BEG_RNG=${SERIES/-*/}
+        END_RNG=${SERIES/*-/}
+    fi
+
+    [[ $BEG_RNG -le 0 || $BEG_RNG -gt $MAXLEN ]] && \
+        echo "begin $BEG_RNG series is out of bounds. MAXLEN=$MAXLEN" && \
+        exit 2
+
+    [[ $END_RNG -le 0 || $END_RNG -gt $MAXLEN ]] && \
+        echo "end series range is out of bounds. MAXLEN=$MAXLEN" && \
+        exit 2
+
+    [[ $BEG_RNG -ge $END_RNG ]] && echo "begin $BEG_RNG MUST be less than END $END_RNG" && exit 2
+    SERIES="$BEG_RNG-$END_RNG"
+}
+
+parse_cmdargs()
+{
+    [[ ! -x "$(which ffmpeg)" ]] && echo "Require ffmpeg, quitting." && exit 2
+    OPTS=`getopt -o g:s:i:o: --long gap:,series:,input:,output: \
+        -n 'parse-options' -- "$@"`
+    [[ $? -ne 0 ]] && usage
+    eval set -- "$OPTS"
+    while true; do
+        case "$1" in
+            -i | --input )    INPUT="$2"; shift 2;;
+            -o | --output )   OUTPUT="$2"; shift 2;;
+            -s | --series )   SERIES="$2"; shift 2;;
+            -g | --gap )      GAP="$2"; shift 2;;
+            -- ) shift; break ;;
+            * ) break ;;
+        esac
+    done
+    [[ "$INPUT" == "" ]] && echo "No input file provided" && usage
+    OUTDIR="${INPUT}-out"
+    mkdir -p $OUTDIR 2>/dev/null
+    get_range
+    [[ "$OUTPUT" == "" ]] && OUTPUT="$OUTDIR/${INPUT}_s${SERIES}_gap$GAP.wav"
+    OUTRES="$OUTDIR/${INPUT}_s${SERIES}_gap$GAP.txt"
+    [[ ! -f "$AU/gap$GAP.wav" ]] && echo "Gap file [$AU/gap$GAP.wav] not found" && exit 2
+    echo "Input  : $INPUT"
+    echo "SERIES : $SERIES"
+    echo "GAP    : $GAP sec"
+    echo "OutWAVE: $OUTPUT"
+    echo "OutRES : $OUTRES"
+}
+
+process_file()
+{
+    lineno=1
+    TMPLIST=wavlist.txt
+    rm -f $TMPLIST $OUTRES $OUTPUT
+    while read line; do
+        list=( $line )
+        numlist="0"
+        [[ -f $TMPLIST ]] && echo "file '$AU/next.wav'" >> $TMPLIST
+        for ((i=$BEG_RNG-1; i<$END_RNG; i++)); do
+            num=${list[$i]}
+            numlist="$numlist + $num"
+            [[ $num == -* ]] && echo "file $AU/less.wav" >> $TMPLIST && num=${num/*-/}
+            echo "file '$AU/$num.wav'" >> $TMPLIST
+            echo "file '$AU/gap$GAP.wav'" >> $TMPLIST
+        done
+        echo "file '$AU/that-is.wav'" >> $TMPLIST
+        echo "file '$AU/gap$GAP.wav'" >> $TMPLIST
+        val=`echo "$numlist" | bc -q`
+        echo "$numlist = $val" >> $OUTRES
+        ((lineno++))
+    done < $INPUT
+    cmd="ffmpeg -hide_banner -y -f concat -i $TMPLIST $OUTPUT"
+    echo "Using cmd: [$cmd]"
+    $cmd
+    rm -f $TMPLIST
+}
+
+
+parse_cmdargs $*
+process_file
