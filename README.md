@@ -1,4 +1,4 @@
-# abacus-train
+# Abacus addition tests
 
 Create an exercise:
 
