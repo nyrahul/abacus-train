@@ -85,7 +85,7 @@ parse_cmdargs()
     OUTDIR="${INPUT}-out"
     mkdir -p $OUTDIR 2>/dev/null
     get_range
-    [[ "$OUTPUT" == "" ]] && OUTPUT="$OUTDIR/${INPUT}_s${SERIES}_gap$GAP.wav"
+    [[ "$OUTPUT" == "" ]] && OUTPUT="$OUTDIR/${INPUT}_s${SERIES}_gap$GAP.m4a"
     OUTRES="$OUTDIR/${INPUT}_s${SERIES}_gap$GAP.txt"
     [[ ! -f "$AU/gap$GAP.wav" ]] && echo "Gap file [$AU/gap$GAP.wav] not found" && exit 2
 }
@@ -112,7 +112,7 @@ process_file()
         echo "$numlist = $val" >> $OUTRES
         ((lineno++))
     done < $INPUT
-    cmd="ffmpeg -hide_banner -y -f concat -i $TMPLIST $OUTPUT"
+    cmd="ffmpeg -async -1 -hide_banner -y -f concat -i $TMPLIST $OUTPUT"
     echo "Using cmd: [$cmd]"
     $cmd 
     echo "Input  : $INPUT"
