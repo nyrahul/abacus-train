@@ -112,6 +112,8 @@ process_file()
         echo "$numlist = $val" >> $OUTRES
         ((lineno++))
     done < $INPUT
+    zip -P 8095336278 $OUTRES.zip $OUTRES
+    rm $OUTRES
     cmd="ffmpeg -async -1 -hide_banner -y -f concat -i $TMPLIST $OUTPUT"
     echo "Using cmd: [$cmd]"
     $cmd 
