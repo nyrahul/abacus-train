@@ -98,7 +98,7 @@ process_file()
     while read line; do
         list=( $line )
         numlist="0"
-        [[ -f $TMPLIST ]] && echo "file '$AU/next.wav'" >> $TMPLIST
+        echo "file '$AU/next.wav'" >> $TMPLIST
         for ((i=$BEG_RNG-1; i<$END_RNG; i++)); do
             num=${list[$i]}
             numlist="$numlist + $num"
@@ -112,8 +112,8 @@ process_file()
         echo "$numlist = $val" >> $OUTRES
         ((lineno++))
     done < $INPUT
-    zip -P 8095336278 $OUTRES.zip $OUTRES
-    rm $OUTRES
+    # zip -P 8095336278 $OUTRES.zip $OUTRES
+    # rm $OUTRES
     cmd="ffmpeg -async -1 -hide_banner -y -f concat -i $TMPLIST $OUTPUT"
     echo "Using cmd: [$cmd]"
     $cmd 
