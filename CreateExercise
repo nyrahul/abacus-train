@@ -15,6 +15,7 @@ usage()
         -o | --output   ... output audio file
         -s | --series   ... series to use (if no series then full series is used
         -g | --gap      ... inter-number gap to use (in seconds) [def=5s]
+        -A | --redo-all ... even if the exercise was done before, redo it.
 
 Examples:
     $0 -i page37.exercise -o page37.wav -s \"1-10\"
@@ -22,7 +23,7 @@ Examples:
     $0 -i page37.exercise -o page37.wav
         ... Full series is used
     $0 -i page37.exercise
-        ... Full series is used and output file is page37.exercise_s1-10_gap5.wav
+        ... Full series is used and output file is page37.exercise_s1-10_gap5.m4a
 "
     exit
 }
@@ -67,16 +68,18 @@ get_range()
 parse_cmdargs()
 {
     [[ ! -x "$(which ffmpeg)" ]] && echo "Require ffmpeg, quitting." && exit 2
-    OPTS=`getopt -o g:s:i:o: --long gap:,series:,input:,output: \
+    OPTS=`getopt -o Ag:s:i:o: --long redo-all,gap:,series:,input:,output: \
         -n 'parse-options' -- "$@"`
     [[ $? -ne 0 ]] && usage
     eval set -- "$OPTS"
+	REDO=0
     while true; do
         case "$1" in
             -i | --input )    INPUT="$2"; shift 2;;
             -o | --output )   OUTPUT="$2"; shift 2;;
             -s | --series )   SERIES="$2"; shift 2;;
             -g | --gap )      GAP="$2"; shift 2;;
+            -A | --redo-all ) REDO=1; shift 2;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -127,4 +130,5 @@ process_file()
 
 
 parse_cmdargs $*
+[[ -f "$OUTPUT" && $REDO -eq 0 ]] && echo "Exercise already processed" && exit 1
 process_file
